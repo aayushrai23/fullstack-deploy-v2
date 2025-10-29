@@ -1,11 +1,12 @@
 version: 0.0
 os: linux
+
 files:
   - source: /
     destination: /var/www/html
+
 hooks:
   AfterInstall:
     - location: scripts/restart.sh
       timeout: 60
       runas: ubuntu
-

@@ -4,13 +4,22 @@ phases:
   install:
     commands:
       - echo "Installing dependencies..."
-      - cd frontend
       - npm install --legacy-peer-deps
+
   build:
     commands:
-      - echo "Building app..."
+      - echo "Building the React app..."
       - npm run build
+
 artifacts:
   files:
     - '**/*'
-  base-directory: frontend/build
+  base-directory: build
+  discard-paths: no
+  secondary-artifacts:
+    DeployArtifact:
+      base-directory: .
+      files:
+        - appspec.yml
+        - scripts/**/*
+        - build/**/*
