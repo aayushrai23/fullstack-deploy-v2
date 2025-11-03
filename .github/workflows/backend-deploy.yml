@@ -6,25 +6,32 @@ on:
     paths:
       - 'backend/**'
       - 'scripts/**'
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  deploy-backend:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      # 1️⃣ Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2️⃣ Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
 
+      # 3️⃣ Install dependencies
       - name: Install Dependencies
         working-directory: ./backend
         run: npm ci
 
-      - name: Upload Backend Files to EC2
+      # 4️⃣ Deploy backend files to EC2
+      - name: Upload Backend to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -33,6 +40,7 @@ jobs:
           source: "backend/*"
           target: ${{ secrets.BACKEND_PATH }}
 
+      # 5️⃣ Restart backend service using PM2
       - name: Restart Backend (PM2)
         uses: appleboy/ssh-action@v1.1.0
         with:
@@ -41,7 +49,8 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           script: |
             cd ${{ secrets.BACKEND_PATH }}
+            echo "Restarting backend service..."
             pm2 stop all || true
             pm2 start server.js --name "backend-app"
             sudo systemctl restart nginx
-            
+            echo "Backend deployed successfully ✅"
