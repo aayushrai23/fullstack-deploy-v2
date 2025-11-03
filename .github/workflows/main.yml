@@ -12,11 +12,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repo
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -24,14 +22,12 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      # 3️⃣ Install & Build frontend
       - name: Install and Build Frontend
         working-directory: ./frontend
         run: |
           npm ci
           npm run build
 
-      # 4️⃣ Deploy build folder to EC2
       - name: Upload Frontend to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -40,8 +36,11 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           source: "frontend/build/*"
           target: ${{ secrets.FRONTEND_PATH }}
+          timeout: 120s
+          command_timeout: 60s
+          strip_components: 0
+          debug: true
 
-      # 5️⃣ Restart Nginx (to reload new build)
       - name: Restart NGINX
         uses: appleboy/ssh-action@v1.1.0
         with:
@@ -49,6 +48,5 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_KEY }}
           script: |
-            echo "Restarting NGINX..."
             sudo systemctl restart nginx
-            echo "Frontend deployed successfully ✅"
+            echo "✅ Frontend deployed successfully!"
