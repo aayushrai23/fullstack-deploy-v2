@@ -44,3 +44,4 @@ jobs:
             pm2 stop all || true
             pm2 start server.js --name "backend-app"
             sudo systemctl restart nginx
+            
