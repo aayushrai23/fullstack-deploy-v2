@@ -1,4 +1,4 @@
-name: Build & Deploy (Secrets Manager)
+name: Build & Deploy (AWS Secrets Manager)
 
 on:
   push:
@@ -23,7 +23,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # 3️⃣ Fetch secrets from AWS Secrets Manager
+      # 3️⃣ Load secrets from AWS Secrets Manager
       - name: Load secrets
         run: |
           SECRET=$(aws secretsmanager get-secret-value \
@@ -31,19 +31,20 @@ jobs:
             --query SecretString \
             --output text)
 
-          echo "SERVER_HOST=$(echo $SECRET | jq -r .SERVER_HOST)" >> $GITHUB_ENV
-          echo "SERVER_USER=$(echo $SECRET | jq -r .SERVER_USER)" >> $GITHUB_ENV
+          echo "SERVER_HOST=$(echo "$SECRET" | jq -r .SERVER_HOST)" >> $GITHUB_ENV
+          echo "SERVER_USER=$(echo "$SECRET" | jq -r .SERVER_USER)" >> $GITHUB_ENV
+
           echo "SERVER_SSH_KEY<<EOF" >> $GITHUB_ENV
-          echo "$(echo $SECRET | jq -r .SERVER_SSH_KEY)" >> $GITHUB_ENV
+          echo "$SECRET" | jq -r .SERVER_SSH_KEY >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      # 4️⃣ Setup SSH
+      # 4️⃣ Setup SSH safely
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "$SERVER_SSH_KEY" > ~/.ssh/id_rsa
+          printf "%s\n" "$SERVER_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$SERVER_HOST" >> ~/.ssh/known_hosts
 
       # 5️⃣ Deploy on server
       - name: Deploy application
@@ -51,7 +52,7 @@ jobs:
           ssh $SERVER_USER@$SERVER_HOST << 'EOF'
             set -e
 
-            cd /var/www/my-app || exit 1
+            cd /var/www/my-app
 
             git pull origin main
 
