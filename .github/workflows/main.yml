@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -22,20 +21,15 @@ jobs:
 
       - name: Fetch secrets from AWS Secrets Manager
         run: |
-          echo "SERVER_HOST=$(aws secretsmanager get-secret-value \
-            --secret-id staging/prod/host \
-            --query SecretString \
-            --output text)" >> $GITHUB_ENV
-
-          echo "SERVER_USER=$(aws secretsmanager get-secret-value \
-            --secret-id staging/prod/user \
-            --query SecretString \
-            --output text)" >> $GITHUB_ENV
-
-          SSH_KEY_VALUE=$(aws secretsmanager get-secret-value \
-            --secret-id staging/prod/ssh_private_key \
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id staging/prod-BWDKSZ \
             --query SecretString \
             --output text)
+
+          echo "SERVER_HOST=$(echo "$SECRET_JSON" | jq -r '.["deploy/prod/host"]')" >> $GITHUB_ENV
+          echo "SERVER_USER=$(echo "$SECRET_JSON" | jq -r '.["deploy/prod/user"]')" >> $GITHUB_ENV
+
+          SSH_KEY_VALUE=$(echo "$SECRET_JSON" | jq -r '.["deploy/prod/ssh_private_key"]')
 
           echo "SSH_KEY<<EOF" >> $GITHUB_ENV
           echo "$SSH_KEY_VALUE" >> $GITHUB_ENV
