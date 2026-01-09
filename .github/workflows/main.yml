@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -21,15 +22,14 @@ jobs:
 
       - name: Fetch secrets from AWS Secrets Manager
         run: |
-          SECRET_JSON=$(aws secretsmanager get-secret-value \
+          aws secretsmanager get-secret-value \
             --secret-id staging/prod \
-            --query SecretString \
-            --output text)
+            --output json > secret.json
 
-          echo "SERVER_HOST=$(echo "$SECRET_JSON" | jq -r '.host')" >> $GITHUB_ENV
-          echo "SERVER_USER=$(echo "$SECRET_JSON" | jq -r '.user')" >> $GITHUB_ENV
+          echo "SERVER_HOST=$(jq -r '.SecretString | fromjson | .host' secret.json)" >> $GITHUB_ENV
+          echo "SERVER_USER=$(jq -r '.SecretString | fromjson | .user' secret.json)" >> $GITHUB_ENV
 
-          SSH_KEY_VALUE=$(echo "$SECRET_JSON" | jq -r '.ssh_private_key')
+          SSH_KEY_VALUE=$(jq -r '.SecretString | fromjson | .ssh_private_key' secret.json)
 
           echo "SSH_KEY<<EOF" >> $GITHUB_ENV
           echo "$SSH_KEY_VALUE" >> $GITHUB_ENV
