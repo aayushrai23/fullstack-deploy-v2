@@ -1,8 +1,9 @@
-name: Deploy Application
+name: Build & Deploy (Secrets Manager)
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -10,36 +11,51 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout code
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2️⃣ Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
+          aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Fetch secrets from AWS Secrets Manager
+      # 3️⃣ Fetch secrets from AWS Secrets Manager
+      - name: Load secrets
         run: |
-          aws secretsmanager get-secret-value \
+          SECRET=$(aws secretsmanager get-secret-value \
             --secret-id staging/prod \
-            --output json > secret.json
+            --query SecretString \
+            --output text)
 
-          echo "SERVER_HOST=$(jq -r '.SecretString | fromjson | .host' secret.json)" >> $GITHUB_ENV
-          echo "SERVER_USER=$(jq -r '.SecretString | fromjson | .user' secret.json)" >> $GITHUB_ENV
-
-          SSH_KEY_VALUE=$(jq -r '.SecretString | fromjson | .ssh_private_key' secret.json)
-
-          echo "SSH_KEY<<EOF" >> $GITHUB_ENV
-          echo "$SSH_KEY_VALUE" >> $GITHUB_ENV
+          echo "SERVER_HOST=$(echo $SECRET | jq -r .SERVER_HOST)" >> $GITHUB_ENV
+          echo "SERVER_USER=$(echo $SECRET | jq -r .SERVER_USER)" >> $GITHUB_ENV
+          echo "SERVER_SSH_KEY<<EOF" >> $GITHUB_ENV
+          echo "$(echo $SECRET | jq -r .SERVER_SSH_KEY)" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      - name: Deploy to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ env.SERVER_HOST }}
-          username: ${{ env.SERVER_USER }}
-          key: ${{ env.SSH_KEY }}
-          source: "./"
-          target: "/var/www/app"
+      # 4️⃣ Setup SSH
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SERVER_SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+
+      # 5️⃣ Deploy on server
+      - name: Deploy application
+        run: |
+          ssh $SERVER_USER@$SERVER_HOST << 'EOF'
+            set -e
+
+            cd /var/www/my-app || exit 1
+
+            git pull origin main
+
+            docker compose down
+            docker compose build
+            docker compose up -d
+          EOF
