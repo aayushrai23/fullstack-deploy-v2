@@ -1,4 +1,4 @@
-name: Deploy Fullstack App (AWS Secrets Manager Only)
+name: Deploy Application
 
 on:
   push:
@@ -10,10 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1️⃣ Authenticate with AWS
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -21,19 +20,23 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      # 2️⃣ Fetch ALL secrets from AWS
-      - name: Fetch server secrets from AWS
+      - name: Fetch secrets from AWS Secrets Manager
         run: |
-          SECRET_JSON=$(aws secretsmanager get-secret-value \
-            --secret-id fullstack/ssh \
+          echo "SERVER_HOST=$(aws secretsmanager get-secret-value \
+            --secret-id staging/prod/host \
             --query SecretString \
-            --output text)
+            --output text)" >> $GITHUB_ENV
 
-          echo "SERVER_HOST=$(echo "$SECRET_JSON" | jq -r .host)" >> $GITHUB_ENV
-          echo "SERVER_USER=$(echo "$SECRET_JSON" | jq -r .user)" >> $GITHUB_ENV
-          echo "SSH_KEY=$(echo "$SECRET_JSON" | jq -r .ssh_key)" >> $GITHUB_ENV
+          echo "SERVER_USER=$(aws secretsmanager get-secret-value \
+            --secret-id staging/prod/user \
+            --query SecretString \
+            --output text)" >> $GITHUB_ENV
 
-      # 3️⃣ Deploy via SCP
+          echo "SSH_KEY=$(aws secretsmanager get-secret-value \
+            --secret-id staging/prod/ssh_private_key \
+            --query SecretString \
+            --output text)" >> $GITHUB_ENV
+
       - name: Deploy to server
         uses: appleboy/scp-action@v0.1.7
         with:
