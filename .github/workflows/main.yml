@@ -1,4 +1,4 @@
-name: Deploy Fullstack App to Ubuntu
+name: Deploy Fullstack App to Ubuntu (Option B)
 
 on:
   push:
@@ -10,12 +10,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Get source code
+      # 1️⃣ Checkout source code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Copy source code to server
-      - name: Upload code to Ubuntu server
+      # 2️⃣ Copy code to Ubuntu server
+      - name: Upload project to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -34,6 +34,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /home/ubuntu/app
-            docker compose down
-            docker compose build
-            docker compose up -d
+            docker compose -p app down
+            docker compose -p app build
+            docker compose -p app up -d
