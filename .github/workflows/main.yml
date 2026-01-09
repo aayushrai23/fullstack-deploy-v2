@@ -10,8 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -27,10 +26,10 @@ jobs:
             --query SecretString \
             --output text)
 
-          echo "SERVER_HOST=$(echo "$SECRET_JSON" | jq -r '.["deploy/prod/host"]')" >> $GITHUB_ENV
-          echo "SERVER_USER=$(echo "$SECRET_JSON" | jq -r '.["deploy/prod/user"]')" >> $GITHUB_ENV
+          echo "SERVER_HOST=$(echo "$SECRET_JSON" | jq -r '.host')" >> $GITHUB_ENV
+          echo "SERVER_USER=$(echo "$SECRET_JSON" | jq -r '.user')" >> $GITHUB_ENV
 
-          SSH_KEY_VALUE=$(echo "$SECRET_JSON" | jq -r '.["deploy/prod/ssh_private_key"]')
+          SSH_KEY_VALUE=$(echo "$SECRET_JSON" | jq -r '.ssh_private_key')
 
           echo "SSH_KEY<<EOF" >> $GITHUB_ENV
           echo "$SSH_KEY_VALUE" >> $GITHUB_ENV
