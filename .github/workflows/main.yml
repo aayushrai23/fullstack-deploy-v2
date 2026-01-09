@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -22,7 +23,7 @@ jobs:
       - name: Fetch secrets from AWS Secrets Manager
         run: |
           SECRET_JSON=$(aws secretsmanager get-secret-value \
-            --secret-id staging/prod-BWDKSZ \
+            --secret-id staging/prod \
             --query SecretString \
             --output text)
 
