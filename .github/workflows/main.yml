@@ -32,10 +32,14 @@ jobs:
             --query SecretString \
             --output text)" >> $GITHUB_ENV
 
-          echo "SSH_KEY=$(aws secretsmanager get-secret-value \
+          SSH_KEY_VALUE=$(aws secretsmanager get-secret-value \
             --secret-id staging/prod/ssh_private_key \
             --query SecretString \
-            --output text)" >> $GITHUB_ENV
+            --output text)
+
+          echo "SSH_KEY<<EOF" >> $GITHUB_ENV
+          echo "$SSH_KEY_VALUE" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Deploy to server
         uses: appleboy/scp-action@v0.1.7
