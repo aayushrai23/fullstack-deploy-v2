@@ -1,8 +1,8 @@
-name: Docker CI/CD - Fullstack
+name: Deploy Fullstack App
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -10,9 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
+      # 1️⃣ Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -20,36 +21,20 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      - name: Fetch SSH secret and create key
+      # 2️⃣ Fetch SSH key from AWS Secrets Manager
+      - name: Fetch SSH key
         run: |
-          aws secretsmanager get-secret-value \
+          echo "SSH_KEY=$(aws secretsmanager get-secret-value \
             --secret-id fullstack/ssh \
             --query SecretString \
-            --output text > ssh.json
+            --output text)" >> $GITHUB_ENV
 
-          jq -r '.SERVER_SSH_KEY' ssh.json > github_actions_key
-          chmod 600 github_actions_key
-
-          echo "SERVER_HOST=$(jq -r .SERVER_HOST ssh.json)" >> $GITHUB_ENV
-          echo "SERVER_USER=$(jq -r .SERVER_USER ssh.json)" >> $GITHUB_ENV
-          echo "SSH_KEY_PATH=github_actions_key" >> $GITHUB_ENV
-
-      - name: Copy docker-compose file
+      # 3️⃣ SCP deploy (NO key_path)
+      - name: Copy files to server
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ env.SERVER_HOST }}
-          username: ${{ env.SERVER_USER }}
-          key_path: ${{ env.SSH_KEY_PATH }}
-          source: docker-compose.yml
-          target: /home/ubuntu/fullstack
-
-      - name: Deploy on server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ env.SERVER_HOST }}
-          username: ${{ env.SERVER_USER }}
-          key_path: ${{ env.SSH_KEY_PATH }}
-          script: |
-            cd /home/ubuntu/fullstack
-            docker compose down
-            docker compose up -d --build
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ env.SSH_KEY }}
+          source: "./"
+          target: "/var/www/app"
